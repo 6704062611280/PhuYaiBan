@@ -21,7 +21,7 @@ public class Player extends Entity {
     private static final int DASH_COOLDOWN = 45;        // รอ 0.75 วินาทีก่อนแดชอีกครั้ง
 
     private static final int SHOOT_COOLDOWN = 12;   // เฟรม (12 = ยิงได้ ~5 นัด/วินาที)
-    private static final double BULLET_SPEED = 12;
+    private static final double BULLET_SPEED = 20;
     private static final int BULLET_DAMAGE = 10;
 
     private static final int INVINCIBLE_FRAMES = 60; // อมตะหลังโดนตี 1 วินาที

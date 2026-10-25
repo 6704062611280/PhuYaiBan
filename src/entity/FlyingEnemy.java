@@ -14,7 +14,7 @@ public class FlyingEnemy extends Enemy {
     private static final double TOO_CLOSE = 240;    // ใกล้กว่านี้ -> บินถอย
     private static final double SHOOT_RANGE = 650;  // ยิงเฉพาะเมื่อผู้เล่นอยู่ในระยะนี้
     private static final int SHOOT_INTERVAL = 120;  // 120 เฟรม = ยิงทุก 2 วินาที
-    private static final double BULLET_SPEED = 5;
+    private static final double BULLET_SPEED = 8;
     private static final int BULLET_DAMAGE = 10;
 
     private final double baseY;   // ความสูงที่ลอย
@@ -22,12 +22,18 @@ public class FlyingEnemy extends Enemy {
     private int shootTimer;
     private boolean facingRight = false;
 
-    public FlyingEnemy(double x, double baseY) {
-        super(x, baseY, 44, 30, 20, 10); // hp 20 = โดน 2 นัด, ชนแล้วเสีย 10
-        this.baseY = baseY;
-        // สุ่มเวลายิงนัดแรก ไม่ให้ศัตรูหลายตัวยิงพร้อมกันเป๊ะ
-        this.shootTimer = 60 + (int) (Math.random() * 60);
-    }
+    private final int shootInterval;
+private final double bulletSpeed;
+private final int bulletDamage;
+
+public FlyingEnemy(double x, double baseY, double difficulty) {
+    super(x, baseY, 44, 30, (int) (20 * difficulty), 10);
+    this.baseY = baseY;
+    this.shootInterval = (int) (120 / difficulty);      // ยิงถี่ขึ้น
+    this.bulletSpeed = 5 * (1 + (difficulty - 1) * 0.5); // กระสุนเร็วขึ้นครึ่งหนึ่งของที่ยากขึ้น
+    this.bulletDamage = (int) (10 * difficulty);
+    this.shootTimer = 60 + (int) (Math.random() * 60);
+}
 
     @Override
     public void update(Player player, Level level, List<Projectile> projectiles) {

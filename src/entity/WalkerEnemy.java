@@ -9,21 +9,26 @@ import java.util.List;
 /** ศัตรูที่เดินตรงเข้าหาผู้เล่น */
 public class WalkerEnemy extends Enemy {
 
-    private static final double SPEED = 1.8;
+    
 
     private boolean facingRight = false;
 
     /** วางบนพื้นที่ groundY โดยอัตโนมัติ */
-    public WalkerEnemy(double x, int groundY) {
-        super(x, groundY - 50, 40, 50, 30, 15); // hp 30 = โดน 3 นัด, ชนแล้วเสีย 15
-    }
+    private final double speed;
+
+public WalkerEnemy(double x, int groundY, double difficulty) {
+    super(x, groundY - 50, 40, 50,
+          (int) (30 * difficulty),    // เลือด
+          (int) (15 * difficulty));   // ดาเมจตอนชน
+    this.speed = 1.8 * difficulty;    // ความเร็วเดิน
+}
 
     @Override
     public void update(Player player, Level level, List<Projectile> projectiles) {
         double dx = player.centerX() - centerX();
         if (Math.abs(dx) > 2) { // กันสั่นเวลาทับตำแหน่งผู้เล่นพอดี
             facingRight = dx > 0;
-            x += facingRight ? SPEED : -SPEED;
+            x += facingRight ? speed : -speed;
         }
         // ไม่ให้หลุดขอบโลก
         x = Math.max(0, Math.min(x, level.worldWidth - width));

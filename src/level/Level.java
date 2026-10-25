@@ -25,6 +25,7 @@ public abstract class Level {
     protected Color groundColor = new Color(90, 60, 40);
     protected Color grassColor = new Color(70, 160, 70);
     protected boolean night = false;
+    protected double difficulty = 1.0;   // ด่าน 1 ใช้ค่านี้
 
     public Level(int worldWidth, int groundY) {
         this.worldWidth = worldWidth;
