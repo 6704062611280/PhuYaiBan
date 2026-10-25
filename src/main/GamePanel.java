@@ -1,6 +1,7 @@
 package main;
 
 import state.GameState;
+import ui.MainMenu;
 
 import javax.swing.JPanel;
 import java.awt.Color;
@@ -9,6 +10,10 @@ import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 
 public class GamePanel extends JPanel implements Runnable {
 
@@ -18,17 +23,54 @@ public class GamePanel extends JPanel implements Runnable {
     private static final int FPS = 60;
 
     // ---------- สถานะเกม ----------
-    private GameState state = GameState.MENU;
+    private volatile GameState state = GameState.MENU; // volatile: ถูกแก้จาก thread เมาส์/คีย์
 
     // ---------- game loop ----------
     private Thread gameThread;
     private int currentFps = 0; // แสดงมุมจอไว้ตรวจสอบ
+
+    // ---------- เมนู ----------
+    private final MainMenu menu;
 
     public GamePanel() {
         setPreferredSize(new Dimension(WIDTH, HEIGHT));
         setBackground(Color.BLACK);
         setDoubleBuffered(true);
         setFocusable(true);
+
+        menu = new MainMenu(
+                () -> setState(GameState.PLAYING), // Play
+                () -> System.exit(0)               // Quit
+        );
+
+        // เมาส์: ชี้ (hover) และคลิก
+        MouseAdapter mouse = new MouseAdapter() {
+            @Override
+            public void mouseMoved(MouseEvent e) {
+                if (state == GameState.MENU) {
+                    menu.mouseMoved(e.getX(), e.getY());
+                }
+            }
+
+            @Override
+            public void mousePressed(MouseEvent e) {
+                if (state == GameState.MENU) {
+                    menu.mousePressed(e.getX(), e.getY());
+                }
+            }
+        };
+        addMouseListener(mouse);
+        addMouseMotionListener(mouse);
+
+        // ปุ่ม ESC: กลับเมนู (ใช้ทดสอบตอนนี้)
+        addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyPressed(KeyEvent e) {
+                if (e.getKeyCode() == KeyEvent.VK_ESCAPE && state != GameState.MENU) {
+                    setState(GameState.MENU);
+                }
+            }
+        });
     }
 
     public void startGameLoop() {
@@ -105,7 +147,7 @@ public class GamePanel extends JPanel implements Runnable {
 
         switch (state) {
             case MENU:
-                drawPlaceholder(g2, "MENU", new Color(30, 30, 60));
+                menu.draw(g2);
                 break;
             case PLAYING:
                 drawPlaceholder(g2, "PLAYING", new Color(20, 60, 40));
