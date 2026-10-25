@@ -1,6 +1,7 @@
 package main;
 
 import entity.Enemy;
+import entity.FlyingEnemy;
 import entity.Player;
 import entity.Projectile;
 import entity.WalkerEnemy;
@@ -128,6 +129,9 @@ public class GamePanel extends JPanel implements Runnable {
         // ชั่วคราว: วางศัตรูทดสอบ (M8 จะย้ายไปอยู่ใน Level1/Level2)
         for (int ex : new int[] {700, 1100, 1500, 1900, 2400}) {
             enemies.add(new WalkerEnemy(ex, level.groundY));
+        }
+        for (int ex : new int[] {1300, 2000}) {
+            enemies.add(new FlyingEnemy(ex, level.groundY - 230));
         }
         cameraX = 0;
         setState(GameState.PLAYING);
