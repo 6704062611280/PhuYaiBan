@@ -37,6 +37,16 @@ public class Player extends Entity {
         invincibleTimer = INVINCIBLE_FRAMES;
     }
 
+    /** เริ่มด่านใหม่: ย้ายไปจุดเริ่ม ล้างสถานะ และฟื้นเลือดตามที่กำหนด */
+    public void startLevel(double startX, double startY, int healAmount) {
+        x = startX;
+        y = startY;
+        velocityY = 0;
+        cooldown = 0;
+        invincibleTimer = INVINCIBLE_FRAMES; // อมตะสั้น ๆ ตอนเกิด
+        hp = Math.min(maxHp, hp + healAmount);
+    }
+
     public void update(InputHandler input, Level level, int cameraX, List<Projectile> projectiles) {
         if (invincibleTimer > 0) invincibleTimer--;
 

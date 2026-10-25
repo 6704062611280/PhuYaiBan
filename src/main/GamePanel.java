@@ -1,12 +1,12 @@
 package main;
 
 import entity.Enemy;
-import entity.FlyingEnemy;
 import entity.Player;
 import entity.Projectile;
-import entity.WalkerEnemy;
 import input.InputHandler;
 import level.Level;
+import level.Level1;
+import level.Level2;
 import state.GameState;
 import ui.HealthBar;
 import ui.MainMenu;
@@ -48,6 +48,10 @@ public class GamePanel extends JPanel implements Runnable {
     private volatile Level level;
     private volatile Player player;
     private int cameraX = 0;
+    private static final int TOTAL_LEVELS = 2;
+    private static final int HEAL_BETWEEN_LEVELS = 50; // ฟื้นเลือดเมื่อผ่านด่าน
+    private int levelIndex = 1;
+    private int bannerTimer = 0; // นับถอยหลังแสดงข้อความ "LEVEL N" กลางจอ
     // CopyOnWriteArrayList: game thread แก้ลิสต์ ขณะที่ EDT วาด จะไม่เกิด ConcurrentModificationException
     private final List<Projectile> projectiles = new CopyOnWriteArrayList<>();
     private final List<Enemy> enemies = new CopyOnWriteArrayList<>();
@@ -121,21 +125,33 @@ public class GamePanel extends JPanel implements Runnable {
 
     /** เริ่มเกมใหม่: สร้างด่านและผู้เล่น แล้วเข้าสู่ PLAYING */
     private void startGame() {
-        level = new Level(3000, 440);
-        player = new Player(100, 100); // เริ่มลอยอยู่ จะตกลงพื้นให้เห็นแรงโน้มถ่วง
-        input.reset();
-        projectiles.clear();
-        enemies.clear();
-        // ชั่วคราว: วางศัตรูทดสอบ (M8 จะย้ายไปอยู่ใน Level1/Level2)
-        for (int ex : new int[] {700, 1100, 1500, 1900, 2400}) {
-            enemies.add(new WalkerEnemy(ex, level.groundY));
-        }
-        for (int ex : new int[] {1300, 2000}) {
-            enemies.add(new FlyingEnemy(ex, level.groundY - 230));
-        }
-        cameraX = 0;
+        player = new Player(100, 100);
+        loadLevel(1, 0);
         setState(GameState.PLAYING);
         requestFocusInWindow(); // ให้คีย์บอร์ดทำงาน
+    }
+
+    /** โหลดด่านที่ n: สร้างฉากและศัตรูใหม่ ย้ายผู้เล่นไปจุดเริ่ม */
+    private void loadLevel(int n, int heal) {
+        levelIndex = n;
+        level = (n == 1) ? new Level1() : new Level2();
+        projectiles.clear();
+        enemies.clear();
+        enemies.addAll(level.createEnemies());
+        player.startLevel(100, 100, heal); // เริ่มลอยอยู่ จะตกลงพื้นให้เห็นแรงโน้มถ่วง
+        input.reset();
+        cameraX = 0;
+        bannerTimer = 120; // แสดงชื่อด่าน 2 วินาที
+    }
+
+    /** ผู้เล่นแตะธงปลายทาง: ไปด่านถัดไป หรือชนะถ้าเป็นด่านสุดท้าย */
+    private void finishLevel() {
+        if (levelIndex < TOTAL_LEVELS) {
+            loadLevel(levelIndex + 1, HEAL_BETWEEN_LEVELS);
+        } else {
+            input.reset();
+            setState(GameState.WIN);
+        }
     }
 
     /** ตรวจการชนทั้งหมดในเฟรมนี้ */
@@ -238,9 +254,12 @@ public class GamePanel extends JPanel implements Runnable {
                 projectiles.removeIf(p -> !p.active);
                 enemies.removeIf(en -> !en.isAlive());
                 updateCamera();
+                if (bannerTimer > 0) bannerTimer--;
                 if (!player.isAlive()) {
                     input.reset();
                     setState(GameState.GAME_OVER);
+                } else if (player.x + player.width >= level.goalX) {
+                    finishLevel();
                 }
                 break;
             case GAME_OVER:
@@ -268,6 +287,13 @@ public class GamePanel extends JPanel implements Runnable {
                 g2.setColor(Color.WHITE);
                 g2.setFont(new Font("SansSerif", Font.PLAIN, 14));
                 g2.drawString("A/D or Arrows = move   Mouse = aim/shoot   ESC = menu", 10, 95);
+                g2.setFont(new Font("SansSerif", Font.BOLD, 16));
+                g2.drawString(level.getName() + "   Enemies: " + enemies.size()
+                        + "   Reach the flag!", 260, 67);
+                if (bannerTimer > 0) {
+                    drawCenteredText(g2, level.getName(), new Font("SansSerif", Font.BOLD, 72),
+                            new Color(255, 255, 255, Math.min(255, bannerTimer * 4)), HEIGHT / 2 - 40);
+                }
                 break;
             case GAME_OVER:
                 drawWorld(g2);                      // ฉากค้างไว้ข้างหลัง
@@ -279,7 +305,13 @@ public class GamePanel extends JPanel implements Runnable {
                         Color.WHITE, HEIGHT / 2 + 40);
                 break;
             case WIN:
-                drawPlaceholder(g2, "YOU WIN", new Color(60, 60, 20));
+                drawWorld(g2);
+                g2.setColor(new Color(0, 0, 0, 170));
+                g2.fillRect(0, 0, WIDTH, HEIGHT);
+                drawCenteredText(g2, "YOU WIN!", new Font("SansSerif", Font.BOLD, 64),
+                        new Color(255, 220, 60), HEIGHT / 2 - 10);
+                drawCenteredText(g2, "Press ESC to return to menu", new Font("SansSerif", Font.PLAIN, 22),
+                        Color.WHITE, HEIGHT / 2 + 40);
                 break;
         }
 
