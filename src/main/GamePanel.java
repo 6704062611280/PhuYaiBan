@@ -1,5 +1,8 @@
 package main;
 
+import entity.Player;
+import input.InputHandler;
+import level.Level;
 import state.GameState;
 import ui.MainMenu;
 
@@ -32,6 +35,12 @@ public class GamePanel extends JPanel implements Runnable {
     // ---------- เมนู ----------
     private final MainMenu menu;
 
+    // ---------- ในเกม ----------
+    private final InputHandler input = new InputHandler();
+    private volatile Level level;
+    private volatile Player player;
+    private int cameraX = 0;
+
     public GamePanel() {
         setPreferredSize(new Dimension(WIDTH, HEIGHT));
         setBackground(Color.BLACK);
@@ -39,7 +48,7 @@ public class GamePanel extends JPanel implements Runnable {
         setFocusable(true);
 
         menu = new MainMenu(
-                () -> setState(GameState.PLAYING), // Play
+                this::startGame,                   // Play
                 () -> System.exit(0)               // Quit
         );
 
@@ -62,6 +71,8 @@ public class GamePanel extends JPanel implements Runnable {
         addMouseListener(mouse);
         addMouseMotionListener(mouse);
 
+        addKeyListener(input);
+
         // ปุ่ม ESC: กลับเมนู (ใช้ทดสอบตอนนี้)
         addKeyListener(new KeyAdapter() {
             @Override
@@ -76,6 +87,22 @@ public class GamePanel extends JPanel implements Runnable {
     public void startGameLoop() {
         gameThread = new Thread(this, "game-loop");
         gameThread.start();
+    }
+
+    /** เริ่มเกมใหม่: สร้างด่านและผู้เล่น แล้วเข้าสู่ PLAYING */
+    private void startGame() {
+        level = new Level(3000, 440);
+        player = new Player(100, 100); // เริ่มลอยอยู่ จะตกลงพื้นให้เห็นแรงโน้มถ่วง
+        input.reset();
+        cameraX = 0;
+        setState(GameState.PLAYING);
+        requestFocusInWindow(); // ให้คีย์บอร์ดทำงาน
+    }
+
+    /** กล้องตามผู้เล่น (ให้ผู้เล่นอยู่กลางจอ) แต่ไม่เลยขอบโลก */
+    private void updateCamera() {
+        cameraX = (int) player.centerX() - WIDTH / 2;
+        cameraX = Math.max(0, Math.min(cameraX, level.worldWidth - WIDTH));
     }
 
     public void setState(GameState newState) {
@@ -129,7 +156,9 @@ public class GamePanel extends JPanel implements Runnable {
                 // M2: จัดการเมนู
                 break;
             case PLAYING:
-                // M3+: อัปเดตผู้เล่น ศัตรู กระสุน
+                player.update(input, level);
+                updateCamera();
+                // M4+: กระสุน ศัตรู
                 break;
             case GAME_OVER:
             case WIN:
@@ -150,7 +179,11 @@ public class GamePanel extends JPanel implements Runnable {
                 menu.draw(g2);
                 break;
             case PLAYING:
-                drawPlaceholder(g2, "PLAYING", new Color(20, 60, 40));
+                level.draw(g2, cameraX);
+                player.draw(g2, cameraX);
+                g2.setColor(Color.WHITE);
+                g2.setFont(new Font("SansSerif", Font.PLAIN, 14));
+                g2.drawString("A/D or Arrows = move   ESC = menu   x=" + (int) player.x, 10, 40);
                 break;
             case GAME_OVER:
                 drawPlaceholder(g2, "GAME OVER", new Color(70, 20, 20));
