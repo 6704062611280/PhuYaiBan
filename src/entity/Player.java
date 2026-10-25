@@ -3,8 +3,10 @@ package entity;
 import input.InputHandler;
 import level.Level;
 
+import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Graphics2D;
+import java.util.List;
 
 public class Player extends Entity {
 
@@ -12,17 +14,23 @@ public class Player extends Entity {
     private static final double GRAVITY = 0.6;
     private static final double MAX_FALL_SPEED = 15;
 
+    private static final int SHOOT_COOLDOWN = 12;   // เฟรม (12 = ยิงได้ ~5 นัด/วินาที)
+    private static final double BULLET_SPEED = 12;
+    private static final int BULLET_DAMAGE = 10;
+
     private double velocityY = 0;
+    private int cooldown = 0;
+    private double aimAngle = 0;
     public boolean facingRight = true;
 
     public Player(double x, double y) {
         super(x, y, 40, 60, 100);
     }
 
-    public void update(InputHandler input, Level level) {
+    public void update(InputHandler input, Level level, int cameraX, List<Projectile> projectiles) {
         // เดินซ้าย/ขวา
-        if (input.left)  { x -= SPEED; facingRight = false; }
-        if (input.right) { x += SPEED; facingRight = true; }
+        if (input.left)  x -= SPEED;
+        if (input.right) x += SPEED;
 
         // ไม่ให้หลุดขอบโลก
         if (x < 0) x = 0;
@@ -34,6 +42,22 @@ public class Player extends Entity {
         if (y + height >= level.groundY) {
             y = level.groundY - height;
             velocityY = 0;
+        }
+
+        // เล็งไปที่เมาส์ (แปลงพิกัดจอ -> พิกัดโลก ด้วยการบวก cameraX)
+        double mouseWorldX = input.mouseX + cameraX;
+        double mouseWorldY = input.mouseY;
+        aimAngle = Math.atan2(mouseWorldY - centerY(), mouseWorldX - centerX());
+        facingRight = mouseWorldX >= centerX();
+
+        // ยิง
+        if (cooldown > 0) cooldown--;
+        if (input.mouseDown && cooldown == 0) {
+            projectiles.add(new Projectile(
+                    centerX() + Math.cos(aimAngle) * 30,   // เริ่มที่ปลายปืน
+                    centerY() + Math.sin(aimAngle) * 30,
+                    aimAngle, BULLET_SPEED, true, BULLET_DAMAGE));
+            cooldown = SHOOT_COOLDOWN;
         }
     }
 
@@ -51,5 +75,13 @@ public class Player extends Entity {
         g2.fillRect(eyeX, sy + 12, 10, 10);
         g2.setColor(Color.BLACK);
         g2.fillRect(facingRight ? eyeX + 5 : eyeX, sy + 14, 5, 6);
+
+        // ปืน: เส้นจากกลางตัวไปทางเมาส์
+        int cx = (int) centerX() - cameraX;
+        int cy = (int) centerY();
+        g2.setStroke(new BasicStroke(6, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+        g2.setColor(new Color(60, 60, 60));
+        g2.drawLine(cx, cy, cx + (int) (Math.cos(aimAngle) * 28), cy + (int) (Math.sin(aimAngle) * 28));
+        g2.setStroke(new BasicStroke(1));
     }
 }

@@ -1,12 +1,15 @@
 package main;
 
 import entity.Player;
+import entity.Projectile;
 import input.InputHandler;
 import level.Level;
 import state.GameState;
 import ui.MainMenu;
 
 import javax.swing.JPanel;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Font;
@@ -40,6 +43,8 @@ public class GamePanel extends JPanel implements Runnable {
     private volatile Level level;
     private volatile Player player;
     private int cameraX = 0;
+    // CopyOnWriteArrayList: game thread แก้ลิสต์ ขณะที่ EDT วาด จะไม่เกิด ConcurrentModificationException
+    private final List<Projectile> projectiles = new CopyOnWriteArrayList<>();
 
     public GamePanel() {
         setPreferredSize(new Dimension(WIDTH, HEIGHT));
@@ -56,15 +61,34 @@ public class GamePanel extends JPanel implements Runnable {
         MouseAdapter mouse = new MouseAdapter() {
             @Override
             public void mouseMoved(MouseEvent e) {
-                if (state == GameState.MENU) {
-                    menu.mouseMoved(e.getX(), e.getY());
-                }
+                trackMouse(e);
+            }
+
+            @Override
+            public void mouseDragged(MouseEvent e) { // ขยับเมาส์ตอนกดค้าง
+                trackMouse(e);
             }
 
             @Override
             public void mousePressed(MouseEvent e) {
+                trackMouse(e);
                 if (state == GameState.MENU) {
                     menu.mousePressed(e.getX(), e.getY());
+                } else if (state == GameState.PLAYING) {
+                    input.mouseDown = true;
+                }
+            }
+
+            @Override
+            public void mouseReleased(MouseEvent e) {
+                input.mouseDown = false;
+            }
+
+            private void trackMouse(MouseEvent e) {
+                input.mouseX = e.getX();
+                input.mouseY = e.getY();
+                if (state == GameState.MENU) {
+                    menu.mouseMoved(e.getX(), e.getY());
                 }
             }
         };
@@ -94,6 +118,7 @@ public class GamePanel extends JPanel implements Runnable {
         level = new Level(3000, 440);
         player = new Player(100, 100); // เริ่มลอยอยู่ จะตกลงพื้นให้เห็นแรงโน้มถ่วง
         input.reset();
+        projectiles.clear();
         cameraX = 0;
         setState(GameState.PLAYING);
         requestFocusInWindow(); // ให้คีย์บอร์ดทำงาน
@@ -156,9 +181,13 @@ public class GamePanel extends JPanel implements Runnable {
                 // M2: จัดการเมนู
                 break;
             case PLAYING:
-                player.update(input, level);
+                player.update(input, level, cameraX, projectiles);
+                for (Projectile p : projectiles) {
+                    p.update(level);
+                }
+                projectiles.removeIf(p -> !p.active);
                 updateCamera();
-                // M4+: กระสุน ศัตรู
+                // M6+: ศัตรู การชน
                 break;
             case GAME_OVER:
             case WIN:
@@ -180,10 +209,14 @@ public class GamePanel extends JPanel implements Runnable {
                 break;
             case PLAYING:
                 level.draw(g2, cameraX);
+                for (Projectile p : projectiles) {
+                    p.draw(g2, cameraX);
+                }
                 player.draw(g2, cameraX);
+                drawCrosshair(g2);
                 g2.setColor(Color.WHITE);
                 g2.setFont(new Font("SansSerif", Font.PLAIN, 14));
-                g2.drawString("A/D or Arrows = move   ESC = menu   x=" + (int) player.x, 10, 40);
+                g2.drawString("A/D or Arrows = move   Mouse = aim/shoot   ESC = menu", 10, 40);
                 break;
             case GAME_OVER:
                 drawPlaceholder(g2, "GAME OVER", new Color(70, 20, 20));
@@ -197,6 +230,14 @@ public class GamePanel extends JPanel implements Runnable {
         g2.setColor(Color.WHITE);
         g2.setFont(new Font("SansSerif", Font.PLAIN, 14));
         g2.drawString("FPS: " + currentFps, 10, 20);
+    }
+
+    private void drawCrosshair(Graphics2D g2) {
+        int mx = input.mouseX, my = input.mouseY;
+        g2.setColor(new Color(255, 255, 255, 220));
+        g2.drawOval(mx - 8, my - 8, 16, 16);
+        g2.drawLine(mx - 12, my, mx + 12, my);
+        g2.drawLine(mx, my - 12, mx, my + 12);
     }
 
     // ชั่วคราว: ใช้ตรวจว่าสลับ state ได้ ใน M2 จะแทนด้วยเมนูจริง

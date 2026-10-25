@@ -3,9 +3,13 @@ package input;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 
-/** เก็บสถานะปุ่มที่กดอยู่ ให้ส่วนอื่นของเกมมาอ่านค่า */
+/** เก็บสถานะปุ่มและเมาส์ ให้ส่วนอื่นของเกมมาอ่านค่า */
 public class InputHandler extends KeyAdapter {
     public volatile boolean left, right;
+
+    // เมาส์ (พิกัดบนหน้าจอ ไม่ใช่พิกัดโลก)
+    public volatile int mouseX, mouseY;
+    public volatile boolean mouseDown;
 
     @Override
     public void keyPressed(KeyEvent e) {
@@ -26,5 +30,6 @@ public class InputHandler extends KeyAdapter {
     public void reset() {
         left = false;
         right = false;
+        mouseDown = false;
     }
 }
