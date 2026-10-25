@@ -284,9 +284,15 @@ public class GamePanel extends JPanel implements Runnable {
                 drawWorld(g2);
                 drawCrosshair(g2);
                 HealthBar.draw(g2, 20, 50, 220, 24, player.hp, player.maxHp); // HUD ติดจอ
+                // หลอดความพร้อมของแดช (เต็ม = แดชได้)
+                double dashReady = player.dashReadyRatio();
+                g2.setColor(new Color(40, 40, 60));
+                g2.fillRect(20, 80, 220, 8);
+                g2.setColor(dashReady >= 1 ? new Color(120, 200, 255) : new Color(90, 120, 160));
+                g2.fillRect(20, 80, (int) (220 * dashReady), 8);
                 g2.setColor(Color.WHITE);
                 g2.setFont(new Font("SansSerif", Font.PLAIN, 14));
-                g2.drawString("A/D or Arrows = move   Mouse = aim/shoot   ESC = menu", 10, 95);
+                g2.drawString("A/D move   Space/W jump   Shift dash   Mouse aim+shoot   ESC menu", 10, 110);
                 g2.setFont(new Font("SansSerif", Font.BOLD, 16));
                 g2.drawString(level.getName() + "   Enemies: " + enemies.size()
                         + "   Reach the flag!", 260, 67);
