@@ -18,8 +18,11 @@ public class Player extends Entity {
     private static final double BULLET_SPEED = 12;
     private static final int BULLET_DAMAGE = 10;
 
+    private static final int INVINCIBLE_FRAMES = 60; // อมตะหลังโดนตี 1 วินาที
+
     private double velocityY = 0;
     private int cooldown = 0;
+    private int invincibleTimer = 0;
     private double aimAngle = 0;
     public boolean facingRight = true;
 
@@ -27,7 +30,16 @@ public class Player extends Entity {
         super(x, y, 40, 60, 100);
     }
 
+    /** โดนตี: ลดเลือด แล้วอมตะชั่วคราว (กันโดนซ้ำทุกเฟรม) */
+    public void takeDamage(int amount) {
+        if (invincibleTimer > 0 || !isAlive()) return;
+        hp = Math.max(0, hp - amount);
+        invincibleTimer = INVINCIBLE_FRAMES;
+    }
+
     public void update(InputHandler input, Level level, int cameraX, List<Projectile> projectiles) {
+        if (invincibleTimer > 0) invincibleTimer--;
+
         // เดินซ้าย/ขวา
         if (input.left)  x -= SPEED;
         if (input.right) x += SPEED;
@@ -63,6 +75,9 @@ public class Player extends Entity {
 
     /** วาดที่ตำแหน่งโลก ลบด้วย cameraX = ตำแหน่งบนหน้าจอ */
     public void draw(Graphics2D g2, int cameraX) {
+        // ตอนอมตะให้กะพริบ (ข้ามการวาดเป็นช่วง ๆ)
+        if (invincibleTimer > 0 && (invincibleTimer / 4) % 2 == 0) return;
+
         int sx = (int) x - cameraX;
         int sy = (int) y;
 

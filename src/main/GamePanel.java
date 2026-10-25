@@ -5,6 +5,7 @@ import entity.Projectile;
 import input.InputHandler;
 import level.Level;
 import state.GameState;
+import ui.HealthBar;
 import ui.MainMenu;
 
 import javax.swing.JPanel;
@@ -104,6 +105,10 @@ public class GamePanel extends JPanel implements Runnable {
                 if (e.getKeyCode() == KeyEvent.VK_ESCAPE && state != GameState.MENU) {
                     setState(GameState.MENU);
                 }
+                // ชั่วคราว (ลบใน M6): กด H = โดนตี 20 เพื่อทดสอบหลอดเลือด
+                if (e.getKeyCode() == KeyEvent.VK_H && state == GameState.PLAYING) {
+                    player.takeDamage(20);
+                }
             }
         });
     }
@@ -188,6 +193,10 @@ public class GamePanel extends JPanel implements Runnable {
                 projectiles.removeIf(p -> !p.active);
                 updateCamera();
                 // M6+: ศัตรู การชน
+                if (!player.isAlive()) {
+                    input.reset();
+                    setState(GameState.GAME_OVER);
+                }
                 break;
             case GAME_OVER:
             case WIN:
@@ -208,18 +217,21 @@ public class GamePanel extends JPanel implements Runnable {
                 menu.draw(g2);
                 break;
             case PLAYING:
-                level.draw(g2, cameraX);
-                for (Projectile p : projectiles) {
-                    p.draw(g2, cameraX);
-                }
-                player.draw(g2, cameraX);
+                drawWorld(g2);
                 drawCrosshair(g2);
+                HealthBar.draw(g2, 20, 50, 220, 24, player.hp, player.maxHp); // HUD ติดจอ
                 g2.setColor(Color.WHITE);
                 g2.setFont(new Font("SansSerif", Font.PLAIN, 14));
-                g2.drawString("A/D or Arrows = move   Mouse = aim/shoot   ESC = menu", 10, 40);
+                g2.drawString("A/D or Arrows = move   Mouse = aim/shoot   H = test damage   ESC = menu", 10, 40 + 55);
                 break;
             case GAME_OVER:
-                drawPlaceholder(g2, "GAME OVER", new Color(70, 20, 20));
+                drawWorld(g2);                      // ฉากค้างไว้ข้างหลัง
+                g2.setColor(new Color(0, 0, 0, 170));
+                g2.fillRect(0, 0, WIDTH, HEIGHT);
+                drawCenteredText(g2, "GAME OVER", new Font("SansSerif", Font.BOLD, 64),
+                        new Color(255, 80, 80), HEIGHT / 2 - 10);
+                drawCenteredText(g2, "Press ESC to return to menu", new Font("SansSerif", Font.PLAIN, 22),
+                        Color.WHITE, HEIGHT / 2 + 40);
                 break;
             case WIN:
                 drawPlaceholder(g2, "YOU WIN", new Color(60, 60, 20));
@@ -230,6 +242,22 @@ public class GamePanel extends JPanel implements Runnable {
         g2.setColor(Color.WHITE);
         g2.setFont(new Font("SansSerif", Font.PLAIN, 14));
         g2.drawString("FPS: " + currentFps, 10, 20);
+    }
+
+    /** วาดโลกเกม (ด่าน กระสุน ผู้เล่น) ใช้ซ้ำทั้งตอนเล่นและตอน Game Over */
+    private void drawWorld(Graphics2D g2) {
+        level.draw(g2, cameraX);
+        for (Projectile p : projectiles) {
+            p.draw(g2, cameraX);
+        }
+        player.draw(g2, cameraX);
+    }
+
+    private void drawCenteredText(Graphics2D g2, String text, Font font, Color color, int baselineY) {
+        g2.setFont(font);
+        g2.setColor(color);
+        int w = g2.getFontMetrics().stringWidth(text);
+        g2.drawString(text, (WIDTH - w) / 2, baselineY);
     }
 
     private void drawCrosshair(Graphics2D g2) {
