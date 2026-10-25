@@ -1,7 +1,9 @@
 package main;
 
+import entity.Enemy;
 import entity.Player;
 import entity.Projectile;
+import entity.WalkerEnemy;
 import input.InputHandler;
 import level.Level;
 import state.GameState;
@@ -16,6 +18,7 @@ import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.Rectangle;
 import java.awt.RenderingHints;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
@@ -46,6 +49,7 @@ public class GamePanel extends JPanel implements Runnable {
     private int cameraX = 0;
     // CopyOnWriteArrayList: game thread แก้ลิสต์ ขณะที่ EDT วาด จะไม่เกิด ConcurrentModificationException
     private final List<Projectile> projectiles = new CopyOnWriteArrayList<>();
+    private final List<Enemy> enemies = new CopyOnWriteArrayList<>();
 
     public GamePanel() {
         setPreferredSize(new Dimension(WIDTH, HEIGHT));
@@ -105,10 +109,6 @@ public class GamePanel extends JPanel implements Runnable {
                 if (e.getKeyCode() == KeyEvent.VK_ESCAPE && state != GameState.MENU) {
                     setState(GameState.MENU);
                 }
-                // ชั่วคราว (ลบใน M6): กด H = โดนตี 20 เพื่อทดสอบหลอดเลือด
-                if (e.getKeyCode() == KeyEvent.VK_H && state == GameState.PLAYING) {
-                    player.takeDamage(20);
-                }
             }
         });
     }
@@ -124,9 +124,46 @@ public class GamePanel extends JPanel implements Runnable {
         player = new Player(100, 100); // เริ่มลอยอยู่ จะตกลงพื้นให้เห็นแรงโน้มถ่วง
         input.reset();
         projectiles.clear();
+        enemies.clear();
+        // ชั่วคราว: วางศัตรูทดสอบ (M8 จะย้ายไปอยู่ใน Level1/Level2)
+        for (int ex : new int[] {700, 1100, 1500, 1900, 2400}) {
+            enemies.add(new WalkerEnemy(ex, level.groundY));
+        }
         cameraX = 0;
         setState(GameState.PLAYING);
         requestFocusInWindow(); // ให้คีย์บอร์ดทำงาน
+    }
+
+    /** ตรวจการชนทั้งหมดในเฟรมนี้ */
+    private void handleCollisions() {
+        Rectangle playerBox = player.getBounds();
+
+        // กระสุน
+        for (Projectile p : projectiles) {
+            if (!p.active) continue;
+            Rectangle pBox = p.getBounds();
+            if (p.fromPlayer) {
+                // กระสุนผู้เล่น -> ศัตรู
+                for (Enemy en : enemies) {
+                    if (en.isAlive() && pBox.intersects(en.getBounds())) {
+                        en.hp -= p.damage;
+                        p.active = false;
+                        break; // กระสุน 1 นัด โดนศัตรูได้ตัวเดียว
+                    }
+                }
+            } else if (pBox.intersects(playerBox)) {
+                // กระสุนศัตรู -> ผู้เล่น
+                player.takeDamage(p.damage);
+                p.active = false;
+            }
+        }
+
+        // ตัวศัตรูชนผู้เล่น
+        for (Enemy en : enemies) {
+            if (en.isAlive() && en.getBounds().intersects(playerBox)) {
+                player.takeDamage(en.contactDamage);
+            }
+        }
     }
 
     /** กล้องตามผู้เล่น (ให้ผู้เล่นอยู่กลางจอ) แต่ไม่เลยขอบโลก */
@@ -190,9 +227,13 @@ public class GamePanel extends JPanel implements Runnable {
                 for (Projectile p : projectiles) {
                     p.update(level);
                 }
+                for (Enemy en : enemies) {
+                    en.update(player, level, projectiles);
+                }
+                handleCollisions();
                 projectiles.removeIf(p -> !p.active);
+                enemies.removeIf(en -> !en.isAlive());
                 updateCamera();
-                // M6+: ศัตรู การชน
                 if (!player.isAlive()) {
                     input.reset();
                     setState(GameState.GAME_OVER);
@@ -222,7 +263,7 @@ public class GamePanel extends JPanel implements Runnable {
                 HealthBar.draw(g2, 20, 50, 220, 24, player.hp, player.maxHp); // HUD ติดจอ
                 g2.setColor(Color.WHITE);
                 g2.setFont(new Font("SansSerif", Font.PLAIN, 14));
-                g2.drawString("A/D or Arrows = move   Mouse = aim/shoot   H = test damage   ESC = menu", 10, 40 + 55);
+                g2.drawString("A/D or Arrows = move   Mouse = aim/shoot   ESC = menu", 10, 95);
                 break;
             case GAME_OVER:
                 drawWorld(g2);                      // ฉากค้างไว้ข้างหลัง
@@ -247,6 +288,9 @@ public class GamePanel extends JPanel implements Runnable {
     /** วาดโลกเกม (ด่าน กระสุน ผู้เล่น) ใช้ซ้ำทั้งตอนเล่นและตอน Game Over */
     private void drawWorld(Graphics2D g2) {
         level.draw(g2, cameraX);
+        for (Enemy en : enemies) {
+            en.draw(g2, cameraX);
+        }
         for (Projectile p : projectiles) {
             p.draw(g2, cameraX);
         }
